@@ -43,10 +43,18 @@ exports.getTasks = async (req, res) => {
 //funcion para crear una tarea
 exports.createTask = async (req, res) => {
   try {
-    const task = await Task.create({
+    const taskData = {
       ...req.body,
       owner: req.user.id,
-    });
+    };
+
+    // 👈 EL SECRETO ANTI-ERRORES: 
+    // Si el cliente viene vacío, borramos el campo para que Mongoose no intente buscar un ID fantasma
+    if (!taskData.client || taskData.client.trim() === '') {
+        delete taskData.client;
+    }
+
+    const task = await Task.create(taskData);
     res.status(201).json(task);
   } catch (error) {
     console.error(error);
@@ -65,7 +73,17 @@ exports.updateTask = async (req, res) => {
       return res.status(401).json({ message: "No autorizado" });
     }
 
-    task = await Task.findByIdAndUpdate(req.params.id, req.body, {
+    const updateData = { ...req.body };
+
+    // 👈 PROTECCIÓN AL ACTUALIZAR: 
+    // Si el usuario edita la tarea y quita al cliente, lo pasamos a "null" para que la DB lo desvincule
+    if (updateData.client === '') {
+        updateData.client = null;
+    } else if (!updateData.client && updateData.client !== null) {
+        delete updateData.client;
+    }
+
+    task = await Task.findByIdAndUpdate(req.params.id, updateData, {
       new: true,
       runValidators: true,
     });

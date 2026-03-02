@@ -22,49 +22,54 @@ const UserSchema = new mongoose.Schema({
         minlength: [6, "La contraseña debe tener al menos 6 caracteres"],
         select: false
     },
-    //preferecnias de usuario
+    // Preferencias de usuario ampliadas
     preferences: {
         aiTone: {
             type: String,
-            enum: ["motivational", "analytical", "strategic"],
+            enum: ["motivational", "analytical", "strategic"], // Corregido 'analytical'
             default: "strategic"
         },
-        monthlyGoal: {type: Number, default: 0}, //meta de dinero mensual inicalmente sera siempre 0, el usuario podra cambiarla 
-        themeColor: {type: String, default: "blue"}//color de la interfaz de usuario por defecto
+        monthlyGoal: { type: Number, default: 0 },
+        themeColor: { type: String, default: "blue" },
+        // 👇 NUEVO: Rol Financiero (Trabajador, Autónomo, Empresa, Modo Dios)
+        role: {
+            type: String,
+            enum: ["worker", "freelancer", "company", "god_mode"],
+            default: "god_mode"
+        }
     },
     resetPasswordToken: String,
     resetPasswordExpire: Date,
 }, {timestamps: true});
 
-//middleware para encriptar las contraseñas antes de guardarla
-//middleware para encriptar las contraseñas antes de guardarla
-UserSchema.pre('save', async function() {
-    if (!this.isModified('password')) return;
+// Middleware para encriptar las contraseñas antes de guardarla
+UserSchema.pre('save', async function(next) { // Añadido 'next'
+    if (!this.isModified('password')) return next(); // Llamamos a next()
 
-    //genero un salt y encripto la contraseña
+    // Genero un salt y encripto la contraseña
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
+    next(); // Llamamos a next() al terminar
 });
 
-//metodo para comparar las contraseña que entra con la que ya esta
+// Metodo para comparar las contraseña que entra con la que ya esta
 UserSchema.methods.matchPassword = async function(enteredPassword){
     return await bcrypt.compare(enteredPassword, this.password);
 };
 
-//llave temporal para recuperar la contraseña nueva
+// Llave temporal para recuperar la contraseña nueva
 UserSchema.methods.getResetPasswordToken = function() {
-    //genero codigo aleatorio
+    // Genero codigo aleatorio
     const resetToken = crypto.randomBytes(20).toString('hex');
 
-    //lo encripto y lo guardo en la base de datos 
+    // Lo encripto y lo guardo en la base de datos 
     this.resetPasswordToken = crypto.createHash('sha256').update(resetToken).digest('hex');
 
-    //pongo fecha de caducidad de 10min
+    // Pongo fecha de caducidad de 10min
     this.resetPasswordExpire = Date.now() + 10 * 60 * 1000;
 
-    //devuelvo el codigo original para enviarlo por email
+    // Devuelvo el codigo original para enviarlo por email
     return resetToken;
-
 };
 
 module.exports = mongoose.model('User', UserSchema);

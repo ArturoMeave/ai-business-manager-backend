@@ -6,7 +6,8 @@ const {
     getMe, 
     updateDetails, 
     forgotPassword, 
-    resetPassword 
+    resetPassword,
+    updatePreferences // 👈 1. IMPORTAMOS LA NUEVA FUNCIÓN
 } = require('../controllers/auth.controller');
 const auth = require('../middlewares/auth.middleware');
 
@@ -21,8 +22,11 @@ router.put('/reset-password/:resettoken', resetPassword); // Usa el código del 
 // ==========================================
 // 🔒 RUTAS PRIVADAS (Requieren estar logueado)
 // ==========================================
-// Usamos el middleware 'auth' solo para estas dos
+// Usamos el middleware 'auth' solo para estas
 router.get('/me', auth, getMe); 
 router.put('/updatedetails', auth, updateDetails);
+
+// 👇 2. AÑADIMOS LA RUTA PARA LAS PREFERENCIAS DE AJUSTES
+router.put('/preferences', auth, updatePreferences);
 
 module.exports = router;

@@ -1,46 +1,55 @@
-const mongoose = require ('mongoose');
+const mongoose = require('mongoose');
 
 const TaskSchema = new mongoose.Schema({
-    title:{
+    title: { 
+        type: String, 
+        required: [true, "El título es obligatorio"] 
+    },
+    description: { 
+        type: String 
+    },
+    status: { 
+        type: String, 
+        enum: ['pending', 'in progress', 'completed'], 
+        default: 'pending' 
+    },
+    priority: { 
+        type: String, 
+        enum: ['low', 'medium', 'high'], 
+        default: 'medium' 
+    },
+    category: { 
+        type: String, 
+        default: 'Llamada' 
+    },
+    budget: { 
+        type: Number, 
+        default: 0 
+    },
+    cost: {
+        type: Number,
+        default: 0
+    },
+    // 👇 EL SECRETO 1: required en false
+    client: { 
+        type: mongoose.Schema.Types.ObjectId, 
+        ref: 'Client', 
+        required: false 
+    },
+    dueDate: { 
+        type: String 
+    },
+    // 👇 EL SECRETO 2: Añadimos la hora para el Timeboxing
+    dueTime: { 
         type: String,
-        required: [true, "El titulo de la tarea es obligatorio"],
-        trim: true,
+        default: ""
     },
-    description: {type: String},
-    specifications: {type: String},
-    
-    status: {
-        type: String,
-        enum: ["pending", "in progress", "completed"],
-        default: "pending"
-    },
-    priority: {
-        type: String,
-        enum: ["low", "medium", "high"],
-        default: "medium"
-    },
-    category: {
-        type: String,
-        enum: ["Llamada", "Reunion", "Email","Tarea", "Reforma", "Mantenimiento", "Otro"],
-        default: "Tarea"
-    },
-    //datos financieros
-    budget: {type: Number, default: 0}, //lo que se cobrara por esta tarea
-    cost: {type: Number, default: 0}, //lo que se ha gastado en esta tarea 
-
-    dueDate: {type: Date}, //fecha limite para completar la tarea
-    
-    //relacion con el cliente
-    client: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Client",
-        required: [true, "Debes asignar un cliente a la tarea"]
-    },
-    owner: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
-        required: true
+    owner: { 
+        type: mongoose.Schema.Types.ObjectId, 
+        ref: 'User', 
+        required: true,
+        index: true 
     }
-}, {timestamps: true});
+}, { timestamps: true });
 
 module.exports = mongoose.model('Task', TaskSchema);

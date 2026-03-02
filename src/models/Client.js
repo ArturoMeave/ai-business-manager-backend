@@ -15,12 +15,17 @@ const ClientSchema = new mongoose.Schema({
         enum: ["Prospect", "Active", "VIP", "Inactive", "Potencial", "General"],
         default: "General"
     },
+    totalValue: {
+        type: Number,
+        default: 0
+    },
     active: {type: Boolean, default: true},
     //relacion con el usuario este cliente pertenece a un usuario concreto
     owner: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
-        required: true
+        required: true,
+        index: true
     }
 },{timestamps: true});
 

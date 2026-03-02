@@ -27,7 +27,7 @@ app.use(helmet()); // Protege las cabeceras HTTP
 // Rate Limiting: Bloquea si hacen más de 100 peticiones en 10 min desde la misma IP
 const limiter = rateLimit({
     windowMs: 10 * 60 * 1000, 
-    max: 100, 
+    max: 5000, 
     message: 'Demasiadas peticiones desde esta IP, intenta de nuevo en 10 minutos.'
 });
 app.use('/api', limiter); // Aplicamos el límite solo a las rutas de la API

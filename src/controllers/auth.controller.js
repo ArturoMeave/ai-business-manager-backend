@@ -1,10 +1,13 @@
 const User = require ('../models/User');
 const jwt = require ('jsonwebtoken');
 const sendEmail = require ('../utils/email');
+const crypto = require('crypto'); // Asegúrate de importar crypto aquí si no lo tenías
 
 const generateToken = (id) => {
     return jwt.sign ({id}, process.env.JWT_SECRET,{
         expiresIn: '30d'//solo durara 30 dias
+    return jwt.sign({ id }, process.env.JWT_SECRET, {
+        expiresIn: '30d' // solo durara 30 dias
     });
 };
 
@@ -39,6 +42,7 @@ exports.register = async (req, res) => {
         }catch(emailError){
             console.error('Error al enviar el correo...',emailError.message);
             //no dentengo el proceso de registro pero si se le notificara al usuario que lo hubo
+            //no detengo el proceso de registro pero si se le notificara al usuario que lo hubo
         }
 
         res.status(201).json({
@@ -119,11 +123,14 @@ exports.forgotPassword = async (req, res) => {
         //genero la llave de forma temporal
         const resetToken = user.getResetPasswordToken();
         //guardo en la base de datos que este usuario ha pedido una llav
+        //guardo en la base de datos que este usuario ha pedido una llave
         await user.save({validateBeforeSave: false});
         //creo un link que el usaurio pulsara 
+        //creo un link que el usuario pulsara 
         const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
 
         //envio el emial de recuperacion
+        //envio el email de recuperacion
         try{
             await sendEmail({
                 email: user.email,
@@ -177,5 +184,36 @@ exports.resetPassword = async (req, res) => {
         });
     }catch(error){
         res.status(500).json({message: 'Error al restablecer la contraseña'});
+    }
+};
+
+// 👇 NUEVO: ACTUALIZAR PREFERENCIAS (IA, Metas y Rol Financiero)
+exports.updatePreferences = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const newPreferences = req.body; // Aquí llega { aiTone, monthlyGoal, role }
+
+        // Buscamos al usuario y actualizamos sus preferencias
+        const updatedUser = await User.findByIdAndUpdate(
+            userId,
+            { preferences: newPreferences },
+            { new: true, runValidators: true } // new:true devuelve el objeto actualizado
+        ).select('-password'); // Ocultamos el password en la respuesta
+
+        if (!updatedUser) {
+            return res.status(404).json({ message: "Usuario no encontrado" });
+        }
+
+        // Devolvemos el usuario completo actualizado
+        res.json({
+            id: updatedUser._id,
+            name: updatedUser.name,
+            email: updatedUser.email,
+            preferences: updatedUser.preferences
+        });
+        
+    } catch (error) {
+        console.error("Error en updatePreferences:", error);
+        res.status(500).json({ message: "Error al actualizar las preferencias" });
     }
 };
