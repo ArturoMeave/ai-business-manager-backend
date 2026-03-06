@@ -7,7 +7,9 @@ const {
     updateDetails, 
     forgotPassword, 
     resetPassword,
-    updatePreferences // 👈 1. IMPORTAMOS LA NUEVA FUNCIÓN
+    updatePreferences,
+    updatePassword,
+    deleteAccount 
 } = require('../controllers/auth.controller');
 const auth = require('../middlewares/auth.middleware');
 
@@ -16,8 +18,8 @@ const auth = require('../middlewares/auth.middleware');
 // ==========================================
 router.post('/register', register);
 router.post('/login', login);
-router.post('/forgot-password', forgotPassword); // Pide el email
-router.put('/reset-password/:resettoken', resetPassword); // Usa el código del email
+router.post('/forgot-password', forgotPassword); 
+router.put('/reset-password/:resettoken', resetPassword); 
 
 // ==========================================
 // 🔒 RUTAS PRIVADAS (Requieren estar logueado)
@@ -25,8 +27,10 @@ router.put('/reset-password/:resettoken', resetPassword); // Usa el código del 
 // Usamos el middleware 'auth' solo para estas
 router.get('/me', auth, getMe); 
 router.put('/updatedetails', auth, updateDetails);
-
-// 👇 2. AÑADIMOS LA RUTA PARA LAS PREFERENCIAS DE AJUSTES
 router.put('/preferences', auth, updatePreferences);
+router.put('/updatepassword', auth, updatePassword);
+
+// 👇 AÑADIMOS LA RUTA PARA ELIMINAR LA CUENTA (Con el guion para que coincida con el Frontend)
+router.delete('/delete-account', auth, deleteAccount);
 
 module.exports = router;

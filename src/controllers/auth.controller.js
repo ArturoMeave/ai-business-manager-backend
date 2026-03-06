@@ -1,219 +1,173 @@
 const User = require ('../models/User');
+const Task = require('../models/Task'); 
+const Client = require('../models/Client'); 
+const Finance = require('../models/Finance'); 
 const jwt = require ('jsonwebtoken');
 const sendEmail = require ('../utils/email');
-const crypto = require('crypto'); // Asegúrate de importar crypto aquí si no lo tenías
+const crypto = require('crypto'); 
+const catchAsync = require('../utils/catchAsync'); // ⚡ 1. IMPORTAMOS LA RED DE SEGURIDAD
 
 const generateToken = (id) => {
     return jwt.sign ({id}, process.env.JWT_SECRET,{
-        expiresIn: '30d'//solo durara 30 dias
-    return jwt.sign({ id }, process.env.JWT_SECRET, {
-        expiresIn: '30d' // solo durara 30 dias
+        expiresIn: '30d'
     });
 };
 
-//@desc Registrar un usuario nuevo
-//@route POST/api/auth/register
-//@access Publico
-exports.register = async (req, res) => {
-    try{
-        const {name, email, password} = req.body;
-        //veo si el usuario ya existe
-        const userExists = await User.findOne({email});
-        if(userExists){
-            return res.status(400).json({message: 'Este correo ya esta registrado'});
-        }
-        //si no existe el usuario lo pueden crear  y se le asigna un token
-        const user = await User.create({
-            name,
-            email,
-            password
-        });
-        const token = generateToken(user._id);
-        try{
-            await sendEmail({
-                email:user.email,
-                subject: 'Bienvenido a AI Business Manager',
-                message: `
-                <h1>¡Hola ${user.name}!</h1>
-                <p>Tu cuenta ha sido creada exitosamente.</p>
-                <p>Ya puedes empezar a gestionar tus clientes y tu negocio con nuestra ayuda.</p>
-                `
-            });
-        }catch(emailError){
-            console.error('Error al enviar el correo...',emailError.message);
-            //no dentengo el proceso de registro pero si se le notificara al usuario que lo hubo
-            //no detengo el proceso de registro pero si se le notificara al usuario que lo hubo
-        }
-
-        res.status(201).json({
-            token,
-            user:{
-                id: user._id,
-                name: user.name,
-                email: user.email,
-                preferences: user.preferences
-            }
-        });
-    }catch(error){
-        console.error(error);
-        res.status(500).json({message: 'Error en el servidor...'});
+// ⚡ 2. ENVOLVEMOS LAS FUNCIONES CON catchAsync() Y BORRAMOS LOS TRY/CATCH
+exports.register = catchAsync(async (req, res) => {
+    const {name, email, password} = req.body;
+    
+    const userExists = await User.findOne({email});
+    if(userExists){
+        return res.status(400).json({message: 'Este correo ya esta registrado'});
     }
-};
-
-exports.login = async (req, res) => {
-    try{
-        const {email, password} = req.body;
-
-        //busco el usuario por su correo 
-        const user = await User.findOne({email}).select('+password');
-        if(user && (await user.matchPassword(password))){
-            res.json({
-                token: generateToken(user._id),
-                user:{
-                    id: user._id,
-                    name: user.name,
-                    email:user.email,
-                    preferences: user.preferences
-                }
-            });
-        }else{
-            res.status(401).json({message: 'Credenciales invalidas...(Email o contraseña incorrectos)'});
-        }
-        }catch(error){
-            console.error(error);
-            res.status(500).json({message: 'Error en el servidor al entrar'});
-        }
-};
-
-//gestion del perfil, obtengo los datos del us logueado asi recarga la web las paginas
-exports.getMe = async (req, res) => {
-    try{
-        const user = await User.findById(req.user.id);
-        res.json(user);
-    }catch(error){
-        res.status(500).json({message: 'Error al obtener los datos'});
-    }
-};
-
-//actualizar el perfil
-exports.updateDetails = async (req, res) => {
-    try{
-        const fieldToUpdate =  {
-            name: req.body.name,
-            preferences: req.body.preferences
-        };
-        const user = await User.findByIdAndUpdate(req.user.id, fieldToUpdate, {
-            new: true,
-            runValidators: true
+    
+    const user = await User.create({ name, email, password });
+    const token = generateToken(user._id);
+    
+    // Este try/catch se queda porque si falla el email, no queremos que salte un error global,
+    // simplemente lo ignoramos y dejamos que el usuario se registre.
+    try {
+        await sendEmail({
+            email:user.email,
+            subject: 'Bienvenido a AI Business Manager',
+            message: `<h1>¡Hola ${user.name}!</h1><p>Tu cuenta ha sido creada exitosamente.</p>`
         });
-        res.json(user);
-    }catch(error){
-        res.status(500).json({message: 'Error al actualizar el perfil'});
+    } catch(emailError) {
+        console.error('Error al enviar el correo silencioso...', emailError.message);
     }
-};
 
-//recuperacion de contraseña
-exports.forgotPassword = async (req, res) => {
-    try{
-        const user = await User.findOne({email: req.body.email});
+    res.status(201).json({
+        token,
+        user:{ id: user._id, name: user.name, email: user.email, preferences: user.preferences }
+    });
+});
 
-        if(!user){
-            return res.status(404).json({message: 'No hay ningun usuario con ese correo '});
-        }
-        //genero la llave de forma temporal
-        const resetToken = user.getResetPasswordToken();
-        //guardo en la base de datos que este usuario ha pedido una llav
-        //guardo en la base de datos que este usuario ha pedido una llave
-        await user.save({validateBeforeSave: false});
-        //creo un link que el usaurio pulsara 
-        //creo un link que el usuario pulsara 
-        const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
+exports.login = catchAsync(async (req, res) => {
+    const {email, password} = req.body;
 
-        //envio el emial de recuperacion
-        //envio el email de recuperacion
-        try{
-            await sendEmail({
-                email: user.email,
-                subject: 'Recuperacion de contraseña - AI Business Manager',
-                html:`
-                <h1>Has solicitado restablecer tu contraseña</h1>
-                <p>Haz clic en el siguiente enlace para crear una nueva contraseña. Este enlace caducará en 10 minutos.</p>
-                <a href="${resetUrl}" style="background-color: #2563eb; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin-top: 10px;">Restablecer Contraseña</a>
-                <p>Si no has solicitado esto, ignora este correo.</p>
-                `
-            });
-            res.status(200).json({message: 'Correo enviado con exito'});
-        }catch(error){
-            //si fallo el correo borro la llave temporal de la base de datos asi no se acumulan tontamente
-            user.resetPasswordToken = undefined;
-            user.resetPasswordExpire = undefined;
-            await user.save({validateBeforeSave: false});
-
-            console.error(error);
-            return res.status(500).json({message: 'No se pudo enviar el email'});
-        }
-    }catch(error){
-        res.status(500).json({message: 'Error al procesar la solicitud'});
-    }
-};
-
-//el usuario actualiza su contraseña con el link del email 
-exports.resetPassword = async (req, res) => {
-    try{
-        //encripto el token que viene por la URL para buscarlo en la base de datos
-        const resetPasswordToken = crypto.createHash('sha256').update(req.params.resettoken).digest('hex');
-        //busco un usuario que tenga esa misma llave y aun no haya caducado
-        const user = await User.findOne({
-            resetPasswordToken,
-            resetPasswordExpire: {$gt: Date.now()}
-        });
-        if(!user){
-            return res.status(400).json({message: 'El enlace no es valido o ha caducado'});
-        }
-        //paso la nueva clave
-        user.password = req.body.password;
-        //borro la clave temporal
-        user.resetPasswordToken = undefined;
-        user.resetPasswordExpire = undefined;
-        //se autoencripta la nueva clave creada por el usuario
-        await user.save();
-        //devuelvo un token nuevo para que asi entre directamente, osea un login automatico
+    const user = await User.findOne({email}).select('+password');
+    if(user && (await user.matchPassword(password))){
         res.json({
             token: generateToken(user._id),
-            message: 'Contraseña actualizada con exito'
+            user:{ id: user._id, name: user.name, email:user.email, preferences: user.preferences }
         });
+    }else{
+        res.status(401).json({message: 'Credenciales invalidas...(Email o contraseña incorrectos)'});
+    }
+});
+
+exports.getMe = catchAsync(async (req, res) => {
+    const user = await User.findById(req.user.id);
+    res.json(user);
+});
+
+exports.updateDetails = catchAsync(async (req, res) => {
+    const fieldToUpdate =  {
+        name: req.body.name,
+        email: req.body.email, 
+        preferences: req.body.preferences
+    };
+    const user = await User.findByIdAndUpdate(req.user.id, fieldToUpdate, {
+        new: true,
+        runValidators: true
+    });
+    res.json(user);
+});
+
+exports.forgotPassword = catchAsync(async (req, res, next) => {
+    const user = await User.findOne({email: req.body.email});
+
+    if(!user){
+        return res.status(404).json({message: 'No hay ningun usuario con ese correo '});
+    }
+    const resetToken = user.getResetPasswordToken();
+    await user.save({validateBeforeSave: false});
+    const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
+
+    try{
+        await sendEmail({
+            email: user.email,
+            subject: 'Recuperacion de contraseña - AI Business Manager',
+            html:`<h1>Has solicitado restablecer tu contraseña</h1><a href="${resetUrl}">Restablecer Contraseña</a>`
+        });
+        res.status(200).json({message: 'Correo enviado con exito'});
     }catch(error){
-        res.status(500).json({message: 'Error al restablecer la contraseña'});
+        user.resetPasswordToken = undefined;
+        user.resetPasswordExpire = undefined;
+        await user.save({validateBeforeSave: false});
+        // Aquí si falla el email enviamos el error al atrapador global manualmente
+        return next(new Error('No se pudo enviar el email')); 
     }
-};
+});
 
-// 👇 NUEVO: ACTUALIZAR PREFERENCIAS (IA, Metas y Rol Financiero)
-exports.updatePreferences = async (req, res) => {
-    try {
-        const userId = req.user.id;
-        const newPreferences = req.body; // Aquí llega { aiTone, monthlyGoal, role }
-
-        // Buscamos al usuario y actualizamos sus preferencias
-        const updatedUser = await User.findByIdAndUpdate(
-            userId,
-            { preferences: newPreferences },
-            { new: true, runValidators: true } // new:true devuelve el objeto actualizado
-        ).select('-password'); // Ocultamos el password en la respuesta
-
-        if (!updatedUser) {
-            return res.status(404).json({ message: "Usuario no encontrado" });
-        }
-
-        // Devolvemos el usuario completo actualizado
-        res.json({
-            id: updatedUser._id,
-            name: updatedUser.name,
-            email: updatedUser.email,
-            preferences: updatedUser.preferences
-        });
-        
-    } catch (error) {
-        console.error("Error en updatePreferences:", error);
-        res.status(500).json({ message: "Error al actualizar las preferencias" });
+exports.resetPassword = catchAsync(async (req, res) => {
+    const resetPasswordToken = crypto.createHash('sha256').update(req.params.resettoken).digest('hex');
+    const user = await User.findOne({
+        resetPasswordToken,
+        resetPasswordExpire: {$gt: Date.now()}
+    });
+    
+    if(!user){
+        return res.status(400).json({message: 'El enlace no es valido o ha caducado'});
     }
-};
+    
+    user.password = req.body.password;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpire = undefined;
+    await user.save();
+    
+    res.json({
+        token: generateToken(user._id),
+        message: 'Contraseña actualizada con exito'
+    });
+});
+
+exports.updatePreferences = catchAsync(async (req, res) => {
+    const userId = req.user.id;
+    const newPreferences = req.body; 
+
+    const updatedUser = await User.findByIdAndUpdate(
+        userId,
+        { preferences: newPreferences },
+        { new: true, runValidators: true } 
+    ).select('-password'); 
+
+    if (!updatedUser) {
+        return res.status(404).json({ message: "Usuario no encontrado" });
+    }
+
+    res.json({
+        id: updatedUser._id,
+        name: updatedUser.name,
+        email: updatedUser.email,
+        preferences: updatedUser.preferences
+    });
+});
+
+exports.updatePassword = catchAsync(async (req, res) => {
+    const user = await User.findById(req.user.id).select('+password');
+
+    const isMatch = await user.matchPassword(req.body.currentPassword);
+    if (!isMatch) {
+        return res.status(401).json({ message: 'La contraseña actual es incorrecta' });
+    }
+
+    user.password = req.body.newPassword;
+    await user.save(); 
+
+    res.status(200).json({
+        message: 'Contraseña actualizada correctamente'
+    });
+});
+
+exports.deleteAccount = catchAsync(async (req, res) => {
+    const userId = req.user.id;
+
+    await Task.deleteMany({ owner: userId });
+    await Client.deleteMany({ owner: userId });
+    await Finance.deleteMany({ owner: userId });
+    await User.findByIdAndDelete(userId);
+
+    res.status(200).json({ message: 'Cuenta y todos los datos eliminados permanentemente' });
+});

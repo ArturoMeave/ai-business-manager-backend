@@ -92,4 +92,10 @@ app.use((req, res) => {
     });
 });
 
+// ==========================================
+// 6. MANEJO DE ERRORES (500)
+// ==========================================
+const errorHandler = require('./middlewares/error.middleware');
+app.use(errorHandler);
+
 module.exports = app;

@@ -26,30 +26,39 @@ const UserSchema = new mongoose.Schema({
     preferences: {
         aiTone: {
             type: String,
-            enum: ["motivational", "analytical", "strategic"], // Corregido 'analytical'
+            enum: ["motivational", "analytical", "strategic"], 
             default: "strategic"
         },
         monthlyGoal: { type: Number, default: 0 },
         themeColor: { type: String, default: "blue" },
-        // 👇 NUEVO: Rol Financiero (Trabajador, Autónomo, Empresa, Modo Dios)
         role: {
             type: String,
             enum: ["worker", "freelancer", "company", "god_mode"],
             default: "god_mode"
-        }
+        },
+        // 👇 NUEVO: Datos Fiscales para Facturas
+        companyName: { type: String, default: "" },
+        taxId: { type: String, default: "" }, // NIF, CIF, DNI...
+        address: { type: String, default: "" },
+        currency: { type: String, enum: ["€", "$", "£"], default: "€" }
     },
     resetPasswordToken: String,
     resetPasswordExpire: Date,
 }, {timestamps: true});
 
 // Middleware para encriptar las contraseñas antes de guardarla
-UserSchema.pre('save', async function(next) { // Añadido 'next'
-    if (!this.isModified('password')) return next(); // Llamamos a next()
+UserSchema.pre('save', async function() { 
+    // 1. Si la contraseña no ha sido modificada, salimos de la función sin hacer nada
+    if (!this.isModified('password')) {
+        return; 
+    }
 
-    // Genero un salt y encripto la contraseña
+    // 2. Si ha sido modificada, generamos el salt y la encriptamos
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
-    next(); // Llamamos a next() al terminar
+    
+    // Al ser una función 'async', ya no necesitamos llamar a next(), 
+    // Mongoose sabe automáticamente que hemos terminado.
 });
 
 // Metodo para comparar las contraseña que entra con la que ya esta
