@@ -27,6 +27,20 @@ exports.createFinance = catchAsync(async (req, res) => {
   res.status(201).json(finance);
 });
 
+exports.updateFinance = catchAsync(async(req, res) => {
+  let finance = await Finance.findById(req.params.id);
+
+  if (!finance) return res.status(404).json({message: 'Movimiento no encontrado'});
+  if (finance.owner.toString() !== req.user.id) return res.status(401).json({message: 'No autorizado'});
+
+  finance = await Finance.findByIdAndUpdate(req.params.id, req.body, {
+    new: true,
+    runValidators: true
+  });
+
+  res.json(finance);
+});
+
 exports.deleteFinance = catchAsync(async (req, res) => {
   const finance = await Finance.findById(req.params.id);
   
@@ -80,7 +94,12 @@ exports.downloadInvoice = catchAsync(async (req, res) => {
       name: user.preferences?.companyName || user.name,
       taxId: user.preferences?.taxId,
       address: user.preferences?.address,
-      currency: user.preferences?.currency
+      currency: user.preferences?.currency,
+      city: user.preferences?.city,
+      zipCode: user.preferences?.zipCode,
+      country: user.preferences?.country,
+      phone: user.preferences?.phone,
+      iban: user.preferences?.iban,
     },
     client: {
       name: finance.category || 'Cliente', 

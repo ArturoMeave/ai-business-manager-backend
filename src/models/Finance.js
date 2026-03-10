@@ -28,6 +28,15 @@ const FinanceSchema = new mongoose.Schema({
         enum: ['estimado', 'completado'],
         default: 'estimado'
     },
+    client: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'Client',
+    required: false
+    },
+    isArchived: {
+        type: Boolean,
+        default: false
+    },
     owner: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',

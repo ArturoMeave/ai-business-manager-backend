@@ -22,6 +22,19 @@ const UserSchema = new mongoose.Schema({
         minlength: [6, "La contraseña debe tener al menos 6 caracteres"],
         select: false
     },
+
+    twoFactorSecret:{
+        type: String,
+        select: false
+    },
+    isTwoFactorEnabled: {
+        type: Boolean,
+        default: false,
+    },
+
+    recoveryCodes: [{
+        type: String
+    }],
     // Preferencias de usuario ampliadas
     preferences: {
         aiTone: {
@@ -40,7 +53,12 @@ const UserSchema = new mongoose.Schema({
         companyName: { type: String, default: "" },
         taxId: { type: String, default: "" }, // NIF, CIF, DNI...
         address: { type: String, default: "" },
-        currency: { type: String, enum: ["€", "$", "£"], default: "€" }
+        currency: { type: String, enum: ["€", "$", "£"], default: "€" },
+        city: {type: String, default: ''},
+        zipCode: {type: String, default: ''},
+        country: {type: String, default: ''},
+        phone: {type: String, default: ''},
+        iban: {type: String, default: ''},
     },
     resetPasswordToken: String,
     resetPasswordExpire: Date,

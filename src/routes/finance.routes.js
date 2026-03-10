@@ -2,7 +2,8 @@ const express = require('express');
 const router = express.Router();
 const { 
     getFinances, 
-    createFinance, 
+    createFinance,
+    updateFinance, 
     deleteFinance, 
     getSummary,
     downloadInvoice // 👈 NUEVO: Importamos el controlador del PDF
@@ -23,6 +24,8 @@ router.route('/')
 router.get('/:id/invoice', downloadInvoice);
 
 router.route('/:id')
-    .delete(deleteFinance);
+.put(updateFinance)
+.delete(deleteFinance);
+
 
 module.exports = router;
