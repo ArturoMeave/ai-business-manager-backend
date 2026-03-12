@@ -106,5 +106,10 @@ exports.getTaskById = catchAsync(async (req, res) => {
     return res.status(401).json({ message: "No autorizado" });
   }
 
+  // Prevención de lectura cruzada: asegurarnos de que el cliente también pertenece al usuario y no fue inyectado
+  if (task.client && task.client.owner && task.client.owner.toString() !== req.user.id) {
+      return res.status(403).json({ message: "Intento de acceso a un cliente no autorizado" });
+  }
+
   res.json(task);
 });

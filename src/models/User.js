@@ -35,6 +35,20 @@ const UserSchema = new mongoose.Schema({
     recoveryCodes: [{
         type: String
     }],
+
+    // dispositivos conectados
+    sessions: {
+        type: [{
+            token: String,
+            deviceType: {type: String, default: 'desktop'},
+            os: String,
+            browser: String,
+            location: String,
+            lastActive: {type: Date, default: Date.now}
+        }],
+        select: false
+    },
+
     // Preferencias de usuario ampliadas
     preferences: {
         aiTone: {
@@ -42,6 +56,11 @@ const UserSchema = new mongoose.Schema({
             enum: ["motivational", "analytical", "strategic"], 
             default: "strategic"
         },
+        
+        // 👇 AQUÍ ESTÁ LA SOLUCIÓN: Agregamos la barrita y el texto secreto al esquema
+        aiCreativity: { type: Number, default: 50 },
+        aiContext: { type: String, default: "" },
+
         monthlyGoal: { type: Number, default: 0 },
         themeColor: { type: String, default: "blue" },
         role: {
@@ -49,7 +68,7 @@ const UserSchema = new mongoose.Schema({
             enum: ["worker", "freelancer", "company", "god_mode"],
             default: "god_mode"
         },
-        // 👇 NUEVO: Datos Fiscales para Facturas
+        // Datos Fiscales para Facturas
         companyName: { type: String, default: "" },
         taxId: { type: String, default: "" }, // NIF, CIF, DNI...
         address: { type: String, default: "" },

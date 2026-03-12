@@ -6,9 +6,33 @@ const groq = new Groq({
 
 exports.generateBusinessAdvice = async (userContext, businessData, question) => {
   try {
-    // ⚡ FORMATEAMOS LOS DATOS PARA QUE LA IA LOS LEA FÁCILMENTE
+    // ⚡ 1. EXTRAEMOS LA CONFIGURACIÓN DEL USUARIO (El Mando a Distancia)
+    const prefs = userContext.preferences || {};
+    
+    // Convertimos la barrita (0 a 100) a la "temperatura" que entiende la IA (0.0 a 1.0)
+    const aiCreativity = prefs.aiCreativity !== undefined ? prefs.aiCreativity : 50;
+    const temperatureValue = aiCreativity / 100; 
+
+    // Extraemos los datos de negocio
+    const currency = prefs.currency || '€';
+    const monthlyGoal = prefs.monthlyGoal || 0;
+    const companyName = prefs.companyName || 'tu negocio';
+    const role = prefs.role || 'Profesional';
+    
+    // Le enseñamos a la IA cómo comportarse según el Tono elegido
+    let toneInstruction = '';
+    if(prefs.aiTone === 'strategic') toneInstruction = 'Responde de forma concisa, directa y estratégica. Ve al grano, sin rodeos, y da pasos de acción claros.';
+    if(prefs.aiTone === 'analytical') toneInstruction = 'Céntrate en los números, métricas y análisis profundo. Desglosa los datos financieros de forma lógica.';
+    if(prefs.aiTone === 'motivational') toneInstruction = 'Actúa como un mentor y coach de negocios. Usa un tono inspirador, cercano, motivador y enfocado en superar las metas.';
+
+    // Las instrucciones secretas del usuario
+    const secretContext = prefs.aiContext 
+        ? `\n\n🚨 INSTRUCCIONES SECRETAS DEL USUARIO (Cumple esto estrictamente):\n"${prefs.aiContext}"` 
+        : '';
+
+    // ⚡ 2. FORMATEAMOS LOS DATOS DE LA BASE DE DATOS
     const clientsText = businessData.clients.length > 0 
-      ? businessData.clients.map(c => `- ${c.name} (${c.companyName || 'Sin empresa'}): Categoría ${c.category}, Ingresos generados: ${c.totalValue}€`).join('\n')
+      ? businessData.clients.map(c => `- ${c.name} (${c.companyName || 'Sin empresa'}): Categoría ${c.category}, Ingresos: ${c.totalValue || 0}${currency}`).join('\n')
       : 'No hay clientes registrados.';
 
     const tasksText = businessData.tasks.length > 0
@@ -16,49 +40,51 @@ exports.generateBusinessAdvice = async (userContext, businessData, question) => 
       : 'No hay tareas pendientes.';
 
     const financesText = businessData.finances.length > 0
-      ? businessData.finances.map(f => `- Fecha: ${new Date(f.date).toISOString().split('T')[0]} | Tipo: ${f.type.toUpperCase()} | Monto: ${f.amount}€ | Concepto: ${f.description} (${f.category}) - ${f.status}`).join('\n')
+      ? businessData.finances.map(f => `- Fecha: ${new Date(f.date).toISOString().split('T')[0]} | Tipo: ${f.type.toUpperCase()} | Monto: ${f.amount}${currency} | Concepto: ${f.description} (${f.category}) - ${f.status}`).join('\n')
       : 'No hay movimientos financieros recientes.';
 
-    // 1. El guion de comportamiento para la IA (AHORA SÚPER POTENCIADO)
-    const systemPrompt = `Eres el "AI Business Manager", un socio estratégico experto en finanzas, productividad y gestión de relaciones con clientes (CRM) integrado directamente en el software del usuario.
+    // ⚡ 3. EL CEREBRO DE LA IA (System Prompt)
+    const systemPrompt = `Eres "AI Business Manager", la Inteligencia Artificial integrada en el software de gestión de ${userContext.name}.
             
-            DATOS DEL USUARIO:
-            - Nombre: ${userContext.name}
-            - Rol preferido: ${userContext.preferences.role || 'Profesional / Negocio'}
-            - Tono de respuesta: ${userContext.preferences.aiTone || 'Directo y profesional'}
+            DATOS VITALES DEL NEGOCIO:
+            - Nombre del usuario: ${userContext.name}
+            - Nombre de la empresa: ${companyName}
+            - Modelo de negocio: ${role}
+            - Moneda principal: ${currency}
+            - Meta de facturación mensual: ${monthlyGoal > 0 ? monthlyGoal + currency : 'No definida'}
             
-            🚨 CONTEXTO EN TIEMPO REAL DE SU NEGOCIO 🚨
-            A continuación tienes los datos extraídos de su cuenta en este momento. Úsalos para responder a sus preguntas con total precisión. Si el usuario te pregunta "¿Cuánto he ganado?", "¿Qué tareas tengo?" o "¿Quién es X cliente?", DEBES responder leyendo esta información:
+            PERSONALIDAD EXIGIDA:
+            ${toneInstruction} ${secretContext}
+            
+            === CONTEXTO EN TIEMPO REAL DE SU BASE DE DATOS ===
+            Úsalo para responder a sus preguntas con total precisión matemática.
 
-            === SUS CLIENTES ===
+            [SUS CLIENTES]
             ${clientsText}
 
-            === SUS TAREAS ACTIVAS ===
+            [SUS TAREAS ACTIVAS]
             ${tasksText}
 
-            === SUS ÚLTIMOS 20 MOVIMIENTOS FINANCIEROS ===
+            [ÚLTIMOS MOVIMIENTOS FINANCIEROS]
             ${financesText}
 
-            TU OBJETIVO:
-            Responder al usuario basándote en su información real. Actúa como si estuvieras viendo su pantalla. 
-            - Si te pide un resumen financiero, suma los ingresos y réstale los gastos de la lista de arriba.
-            - Si te pide qué hacer hoy, fíjate en las tareas urgentes y recomiéndale por dónde empezar.
-            - Nunca inventes datos que no estén en el contexto de arriba. Si no ves a un cliente en la lista, dile "No encuentro a ese cliente en tu base de datos".
+            TU REGLA DE ORO:
+            Actúa como si estuvieras dentro de su pantalla. Calcula los datos reales que tienes arriba si te pide resúmenes. Nunca inventes clientes, tareas o finanzas que no estén en la lista. Si no sabes algo, dile que no tienes esos datos en su sistema.
             `;
             
-    // 2. La petición al servidor de Groq
+    // ⚡ 4. LA LLAMADA AL MOTOR CON SU TEMPERATURA
     const chatCompletion = await groq.chat.completions.create({
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: question },
       ],
       model: "llama-3.3-70b-versatile", 
-      temperature: 0.5, // Lo bajamos un poco a 0.5 para que sea más analítico y preciso con los números
+      temperature: temperatureValue, // Aquí inyectamos el valor de su barrita (0.0 a 1.0)
     });
     
     return (
       chatCompletion.choices[0]?.message?.content ||
-      "Lo siento, no pude generar una respuesta."
+      "Lo siento, mis circuitos están saturados y no pude generar una respuesta."
     );
   } catch (error) {
     console.error("Error en groq AI:", error);

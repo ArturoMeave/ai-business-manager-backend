@@ -8,11 +8,30 @@ const crypto = require('crypto');
 const catchAsync = require('../utils/catchAsync');
 const speakeasy = require('speakeasy'); 
 const qrcode = require('qrcode');
+const UAParser = require('ua-parser-js'); 
 
 const generateToken = (id) => {
     return jwt.sign({id}, process.env.JWT_SECRET, {
         expiresIn: '30d'
     });
+};
+
+// FUNCIÓN MÁGICA: Anota el dispositivo y navegador del usuario
+const addSessionToUser = async (user, token, req) => {
+    const parser = new UAParser(req.headers['user-agent']);
+    const ua = parser.getResult();
+    
+    if (!user.sessions) user.sessions = [];
+    if (user.sessions.length >= 8) user.sessions.shift(); 
+
+    user.sessions.push({
+        token,
+        deviceType: (ua.device.type === 'mobile' || ua.device.type === 'tablet') ? 'mobile' : 'desktop',
+        os: ua.os.name || 'Desconocido',
+        browser: ua.browser.name || 'Desconocido',
+        location: req.ip === '::1' || req.ip === '127.0.0.1' ? 'Conexión Local' : req.ip
+    });
+    await user.save();
 };
 
 exports.register = catchAsync(async (req, res) => {
@@ -25,6 +44,8 @@ exports.register = catchAsync(async (req, res) => {
     
     const user = await User.create({ name, email, password });
     const token = generateToken(user._id);
+    
+    await addSessionToUser(user, token, req);
     
     try {
         await sendEmail({
@@ -51,7 +72,7 @@ exports.register = catchAsync(async (req, res) => {
 exports.login = catchAsync(async (req, res) => {
     const {email, password} = req.body;
 
-    const user = await User.findOne({email}).select('+password');
+    const user = await User.findOne({email}).select('+password +sessions');
     
     if(user && (await user.matchPassword(password))){
         if (user.isTwoFactorEnabled) {
@@ -61,8 +82,12 @@ exports.login = catchAsync(async (req, res) => {
             });
         }
 
+        const token = generateToken(user._id);
+        
+        await addSessionToUser(user, token, req);
+
         res.json({
-            token: generateToken(user._id),
+            token,
             user:{ 
                 id: user._id, 
                 name: user.name, 
@@ -99,7 +124,7 @@ exports.googleLogin = catchAsync(async (req, res) => {
         return res.status(401).json({ message: "Fallo al verificar la cuenta con Google" });
     }
 
-    let user = await User.findOne({ email });
+    let user = await User.findOne({ email }).select('+sessions');
 
     if (!user) {
         const randomPassword = crypto.randomBytes(20).toString('hex');
@@ -117,8 +142,11 @@ exports.googleLogin = catchAsync(async (req, res) => {
         });
     }
 
+    const authToken = generateToken(user._id);
+    await addSessionToUser(user, authToken, req);
+
     res.status(200).json({
-        token: generateToken(user._id),
+        token: authToken,
         user: { 
             id: user._id, 
             name: user.name, 
@@ -130,13 +158,27 @@ exports.googleLogin = catchAsync(async (req, res) => {
 });
 
 exports.getMe = catchAsync(async (req, res) => {
-    const user = await User.findById(req.user.id);
+    const user = await User.findById(req.user.id).select('+sessions');
+    
+    let currentToken = req.headers.authorization?.split(' ')[1];
+
+    const formattedSessions = (user.sessions || []).map(s => ({
+        id: s._id,
+        type: s.deviceType,
+        os: s.os,
+        browser: s.browser,
+        location: s.location,
+        time: s.lastActive,
+        current: s.token === currentToken
+    }));
+
     res.json({
         id: user._id,
         name: user.name,
         email: user.email,
         preferences: user.preferences,
-        isTwoFactorEnabled: user.isTwoFactorEnabled 
+        isTwoFactorEnabled: user.isTwoFactorEnabled,
+        sessions: formattedSessions.reverse() 
     });
 });
 
@@ -153,28 +195,39 @@ exports.updateDetails = catchAsync(async (req, res) => {
     res.json(user);
 });
 
+// 👇 FUNCIÓN DE RECUPERAR CONTRASEÑA LIMPIA 👇
 exports.forgotPassword = catchAsync(async (req, res, next) => {
-    const user = await User.findOne({email: req.body.email});
-
-    if(!user){
-        return res.status(404).json({message: 'No hay ningun usuario con ese correo '});
+    const user = await User.findOne({ email: req.body.email });
+    
+    if (!user) {
+        return res.status(404).json({ message: 'No hay usuario con ese correo' });
     }
-    const resetToken = user.getResetPasswordToken();
-    await user.save({validateBeforeSave: false});
-    const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
 
-    try{
+    const resetToken = user.getResetPasswordToken();
+    await user.save({ validateBeforeSave: false });
+    
+    try {
+        const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
         await sendEmail({
             email: user.email,
-            subject: 'Recuperacion de contraseña - AI Business Manager',
-            html:`<h1>Has solicitado restablecer tu contraseña</h1><a href="${resetUrl}">Restablecer Contraseña</a>`
+            subject: 'Recuperación de contraseña en AI Business Manager',
+            message: `
+                <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+                    <h2>Recuperación de contraseña</h2>
+                    <p>Has solicitado restablecer tu contraseña. Haz clic en el siguiente enlace para crear una nueva:</p>
+                    <a href="${resetUrl}" target="_blank" style="display: inline-block; padding: 10px 20px; margin: 20px 0; font-size: 16px; color: #fff; background-color: #059669; text-decoration: none; border-radius: 5px;">Restablecer Contraseña</a>
+                    <p style="font-size: 14px; color: #666;">Si no solicitaste esto, puedes ignorar este correo.</p>
+                </div>
+            `
         });
-        res.status(200).json({message: 'Correo enviado con exito'});
-    }catch(error){
+        
+        res.status(200).json({ message: 'Correo enviado correctamente' });
+    } catch (error) {
         user.resetPasswordToken = undefined;
         user.resetPasswordExpire = undefined;
-        await user.save({validateBeforeSave: false});
-        return next(new Error('No se pudo enviar el email')); 
+        await user.save({ validateBeforeSave: false });
+        
+        return res.status(500).json({ message: 'Hubo un error al enviar el correo. Inténtalo de nuevo.' });
     }
 });
 
@@ -242,7 +295,7 @@ exports.deleteAccount = catchAsync(async (req, res) => {
     const userId = req.user.id;
 
     await Task.deleteMany({ owner: userId });
-    await Client.deleteMany({ owner: userId });
+    await Client.deleteMany({ owner: userId});
     await Finance.deleteMany({ owner: userId });
     await User.findByIdAndDelete(userId);
 
@@ -267,7 +320,6 @@ exports.generate2FA = catchAsync(async(req, res) =>{
     });
 });
 
-// ⚡ ACTUALIZADO: Fabricamos los códigos de recuperación si el 2FA es correcto
 exports.verifyAndEnable2FA = catchAsync(async (req, res) => {
     const { token } = req.body; 
 
@@ -292,20 +344,16 @@ exports.verifyAndEnable2FA = catchAsync(async (req, res) => {
         return res.status(400).json({ message: "El código es incorrecto o ha caducado" });
     }
 
-    // ⚡ LA FÁBRICA DE PARACAÍDAS
     const recoveryCodes = [];
     for (let i = 0; i < 5; i++) {
-        // Inventamos códigos de 8 letras/números
         const code = crypto.randomBytes(4).toString('hex');
         recoveryCodes.push(code);
     }
 
-    // Guardamos los códigos y activamos el candado
     user.recoveryCodes = recoveryCodes;
     user.isTwoFactorEnabled = true;
     await user.save();
 
-    // Enviamos los códigos al Frontend para que el usuario los vea
     res.status(200).json({ 
         message: "Autenticación de dos pasos activada con éxito",
         isTwoFactorEnabled: true,
@@ -313,7 +361,6 @@ exports.verifyAndEnable2FA = catchAsync(async (req, res) => {
     });
 });
 
-// ⚡ ACTUALIZADO: Comprobar el código de 6 números O el código de recuperación
 exports.verify2FALogin = catchAsync(async (req, res) => {
     const { email, token } = req.body; 
 
@@ -321,25 +368,18 @@ exports.verify2FALogin = catchAsync(async (req, res) => {
         return res.status(400).json({ message: "Por favor, introduce tu código de seguridad" });
     }
 
-    // Pedimos al usuario trayendo también su lista secreta de códigos de recuperación
-    const user = await User.findOne({ email }).select('+twoFactorSecret +recoveryCodes');
+    const user = await User.findOne({ email }).select('+twoFactorSecret +recoveryCodes +sessions');
     
     if (!user) {
         return res.status(404).json({ message: "Usuario no encontrado" });
     }
 
-    // 1. ¿Es lo que ha escrito un código de emergencia?
-    // Verificamos si existe la lista y si el código que nos manda está dentro de ella
     const isRecoveryCode = user.recoveryCodes && user.recoveryCodes.includes(token);
 
     if (isRecoveryCode) {
-        // ⚡ ¡ACERTÓ EL CÓDIGO DE EMERGENCIA!
-        // Le borramos este código de la lista para que NUNCA MÁS se pueda volver a usar
         user.recoveryCodes = user.recoveryCodes.filter(code => code !== token);
         await user.save();
-        
     } else {
-        // 2. Si no es de emergencia, comprobamos si son los 6 números normales de la app
         const isVerified = speakeasy.totp.verify({
             secret: user.twoFactorSecret,
             encoding: 'base32',
@@ -347,15 +387,16 @@ exports.verify2FALogin = catchAsync(async (req, res) => {
             window: 1
         });
 
-        // Si falla las dos cosas, le damos error
         if (!isVerified) {
             return res.status(400).json({ message: "El código es incorrecto o ha caducado" });
         }
     }
 
-    // Si ha pasado con éxito cualquiera de los dos (emergencia o app), le damos su pase VIP
+    const authToken = generateToken(user._id);
+    await addSessionToUser(user, authToken, req);
+
     res.status(200).json({
-        token: generateToken(user._id),
+        token: authToken,
         user: { 
             id: user._id, 
             name: user.name, 
@@ -364,4 +405,30 @@ exports.verify2FALogin = catchAsync(async (req, res) => {
             isTwoFactorEnabled: true 
         }
     });
+});
+
+exports.logoutDevice = catchAsync(async (req, res) => {
+    const { sessionId } = req.params;
+    const user = await User.findById(req.user.id).select('+sessions');
+    
+    user.sessions = user.sessions.filter(s => s._id.toString() !== sessionId);
+    await user.save();
+    
+    res.status(200).json({ message: 'Sesión cerrada correctamente en ese dispositivo' });
+});
+
+exports.logout = catchAsync(async (req, res) => {
+    const user = await User.findById(req.user.id).select('+sessions');
+    
+    let currentToken;
+    if (req.headers.authorization && req.headers.authorization.startsWith("Bearer")) {
+        currentToken = req.headers.authorization.split(" ")[1];
+    }
+
+    if (user.sessions) {
+        user.sessions = user.sessions.filter(session => session.token !== currentToken);
+        await user.save(); 
+    }
+
+    res.status(200).json({ message: 'Sesión cerrada correctamente en el servidor' });
 });

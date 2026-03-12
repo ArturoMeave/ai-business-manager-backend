@@ -63,6 +63,13 @@ exports.deleteClient = catchAsync(async (req, res) => {
         { client: req.params.id }, 
         { $unset: { client: 1 } } 
     );
+    
+    // Desvinculamos el cliente del registro financiero también
+    const Finance = require('../models/Finance');
+    await Finance.updateMany(
+        { client: req.params.id }, 
+        { $unset: { client: 1 } } 
+    );
 
     await client.deleteOne();
     res.json({ message: 'Cliente eliminado y tareas desvinculadas correctamente' });
