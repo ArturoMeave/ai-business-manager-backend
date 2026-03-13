@@ -16,7 +16,7 @@ const generateToken = (id) => {
     });
 };
 
-// FUNCIÓN MÁGICA: Anota el dispositivo y navegador del usuario
+// Registra el dispositivo y navegador en la sesión
 const addSessionToUser = async (user, token, req) => {
     const parser = new UAParser(req.headers['user-agent']);
     const ua = parser.getResult();
@@ -195,7 +195,7 @@ exports.updateDetails = catchAsync(async (req, res) => {
     res.json(user);
 });
 
-// 👇 FUNCIÓN DE RECUPERAR CONTRASEÑA LIMPIA 👇
+// Recuperar contraseña
 exports.forgotPassword = catchAsync(async (req, res, next) => {
     const user = await User.findOne({ email: req.body.email });
     
