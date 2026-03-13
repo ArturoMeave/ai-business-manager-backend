@@ -21,8 +21,8 @@ exports.getDashboardStats = async (userId) => {
     completedTasks,
     financeAgg, 
     moneyAtStakeAgg,
-    chartAgg,     // Gráfico de Finanzas
-    clientsAgg    // ⚡ NUEVO: Gráfico de Clientes
+    chartAgg,
+    clientsAgg
   ] = await Promise.all([
     Client.countDocuments({ owner: userId }),
     Client.countDocuments({ owner: userId, active: true }),
@@ -50,7 +50,6 @@ exports.getDashboardStats = async (userId) => {
         } 
       }
     ]),
-    // ⚡ NUEVO: Clientes creados en los últimos 6 meses
     Client.aggregate([
       { $match: { owner: userObjectId, createdAt: { $gte: sixMonthsAgo, $lte: endMonth } } },
       {
@@ -88,7 +87,7 @@ exports.getDashboardStats = async (userId) => {
       year: d.getFullYear(),
       ingresos: 0,
       gastos: 0,
-      nuevosClientes: 0 // ⚡ Añadimos la variable de clientes al esqueleto
+      nuevosClientes: 0
     });
   }
 
@@ -101,7 +100,6 @@ exports.getDashboardStats = async (userId) => {
     }
   });
 
-  // ⚡ NUEVO: Rellenamos con clientes reales
   clientsAgg.forEach(item => {
     const dataPoint = chartData.find(d => d.month === item._id.month && d.year === item._id.year);
     if (dataPoint) {

@@ -15,7 +15,7 @@ const {
     verifyAndEnable2FA,
     verify2FALogin,
     logoutDevice,
-    logout // ⚡ Importamos la nueva función
+    logout 
 } = require('../controllers/auth.controller');
 const auth = require('../middlewares/auth.middleware');
 
@@ -45,7 +45,7 @@ router.post('/2fa/verify', auth, verifyAndEnable2FA);
 // Cerrar sesión remota en un dispositivo
 router.delete('/sessions/:sessionId', auth, logoutDevice);
 
-// ⚡ NUEVA RUTA: Cerrar sesión en el dispositivo actual
+// Cerrar sesión en el dispositivo actual
 router.post('/logout', auth, logout);
 
 module.exports = router;

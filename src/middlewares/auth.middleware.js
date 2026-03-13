@@ -18,13 +18,13 @@ const auth = async (req, res, next) => {
     
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // ⚡ Traemos también la libreta de sesiones (+sessions)
+    // Traemos también las sesiones
     const user = await User.findById(decoded.id).select("-password +sessions");
     if (!user) {
       return res.status(401).json({ message: "No estas autorizado..." });
     }
 
-    // ⚡ EL PORTERO REVISA LA LISTA
+    // Comprobamos sesión activa
     const sessionExists = user.sessions && user.sessions.some(s => s.token === token);
     if (!sessionExists) {
       return res.status(401).json({ message: "Tu sesión ha sido cerrada desde otro dispositivo. Vuelve a iniciar sesión." });

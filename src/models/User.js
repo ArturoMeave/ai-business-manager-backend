@@ -56,8 +56,6 @@ const UserSchema = new mongoose.Schema({
             enum: ["motivational", "analytical", "strategic"], 
             default: "strategic"
         },
-        
-        // 👇 AQUÍ ESTÁ LA SOLUCIÓN: Agregamos la barrita y el texto secreto al esquema
         aiCreativity: { type: Number, default: 50 },
         aiContext: { type: String, default: "" },
 

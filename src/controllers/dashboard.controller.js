@@ -1,7 +1,7 @@
 const dashboardService = require("../services/dashboard.service");
 const catchAsync = require('../utils/catchAsync');
 
-// ⚡ NUEVO: Nuestro "Cerebro" de Memoria Temporal (Caché)
+// Caché para el dashboard
 // Usamos un Map (un diccionario) para guardar los datos de cada usuario por separado.
 const cache = new Map();
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutos expresados en milisegundos
@@ -16,7 +16,7 @@ exports.getDashboardData = catchAsync(async (req, res) => {
     const isFresh = (Date.now() - cachedRecord.timestamp) < CACHE_DURATION;
 
     if (isFresh) {
-      console.log("🚀 Entregando Dashboard desde la CACHÉ (0 esfuerzo para la Base de Datos)");
+      console.log("Entregando Dashboard desde la caché.");
       return res.json({
         status: "success",
         source: "cache", // Le chivamos al frontend que viene de la memoria
@@ -25,8 +25,8 @@ exports.getDashboardData = catchAsync(async (req, res) => {
     }
   }
 
-  // 2. Si no hay caché o está caducada, ponemos a la Base de Datos a trabajar duro
-  console.log("🐢 Calculando Dashboard desde la BASE DE DATOS...");
+  // 2. Si no hay caché o está caducada, buscamos en la base de datos
+  console.log("Calculando Dashboard desde la base de datos.");
   const stats = await dashboardService.getDashboardStats(userId);
 
   // 3. Guardamos el resultado en la pizarra para la próxima vez

@@ -1,6 +1,6 @@
 const Client = require('../models/Client');
 const Task = require('../models/Task');
-const catchAsync = require('../utils/catchAsync'); // ⚡ Importamos el Atrapador
+const catchAsync = require('../utils/catchAsync');
 
 exports.getClients = catchAsync(async (req, res) => {
     const page = parseInt(req.query.page, 10) || 1;

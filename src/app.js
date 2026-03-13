@@ -36,7 +36,7 @@ app.use(xss());
 
 app.get('/', (req, res) => {
     res.status(200).json({
-        message: '🚀 API AI Business Manager v2.0',
+        message: 'API AI Business Manager v2.0',
         status: 'Online',
         version: '2.0.0',
         timestamp: new Date()

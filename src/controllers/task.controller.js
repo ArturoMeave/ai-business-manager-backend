@@ -1,8 +1,7 @@
 const Task = require("../models/Task");
-const catchAsync = require('../utils/catchAsync'); // ⚡ 1. IMPORTAMOS NUESTRA RED DE SEGURIDAD
+const catchAsync = require('../utils/catchAsync');
 
 // obtener tareas del usuario
-// ⚡ 2. ENVOLVEMOS LA FUNCIÓN CON catchAsync Y BORRAMOS EL TRY/CATCH
 exports.getTasks = catchAsync(async (req, res) => {
   const {status, priority, clientId} = req.query;
 

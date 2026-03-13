@@ -6,7 +6,7 @@ const {
     updateFinance, 
     deleteFinance, 
     getSummary,
-    downloadInvoice // 👈 NUEVO: Importamos el controlador del PDF
+    downloadInvoice 
 } = require('../controllers/finance.controller');
 const auth = require('../middlewares/auth.middleware');
 
@@ -20,7 +20,6 @@ router.route('/')
     .get(getFinances)
     .post(createFinance);
 
-// 👇 ⚡ NUEVA RUTA: Descargar la factura en PDF
 router.get('/:id/invoice', downloadInvoice);
 
 router.route('/:id')

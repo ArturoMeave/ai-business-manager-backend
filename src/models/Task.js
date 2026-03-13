@@ -30,7 +30,6 @@ const TaskSchema = new mongoose.Schema({
         type: Number,
         default: 0
     },
-    // 👇 EL SECRETO 1: required en false
     client: { 
         type: mongoose.Schema.Types.ObjectId, 
         ref: 'Client', 
@@ -39,7 +38,6 @@ const TaskSchema = new mongoose.Schema({
     dueDate: { 
         type: String 
     },
-    // 👇 EL SECRETO 2: Añadimos la hora para el Timeboxing
     dueTime: { 
         type: String,
         default: ""

@@ -1,8 +1,8 @@
 const Finance = require("../models/Finance");
-const User = require("../models/User"); // 👈 Necesario para el PDF
+const User = require("../models/User"); 
 const mongoose = require("mongoose");
-const catchAsync = require('../utils/catchAsync'); // 👈 Aquí está la red de seguridad
-const { generateInvoice } = require("../utils/pdfGenerator"); // 👈 La imprenta de PDFs
+const catchAsync = require('../utils/catchAsync'); 
+const { generateInvoice } = require("../utils/pdfGenerator"); 
 
 exports.getFinances = catchAsync(async (req, res) => {
   const { startDate, endDate, type } = req.query;
@@ -78,7 +78,7 @@ exports.getSummary = catchAsync(async (req, res) => {
   });
 });
 
-// ⚡ CONTROLADOR DEL PDF
+// Controlador del PDF
 exports.downloadInvoice = catchAsync(async (req, res) => {
   // 1. Buscamos el movimiento
   const finance = await Finance.findById(req.params.id);

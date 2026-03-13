@@ -6,7 +6,7 @@ const groq = new Groq({
 
 exports.generateBusinessAdvice = async (userContext, businessData, question) => {
   try {
-    // ⚡ 1. EXTRAEMOS LA CONFIGURACIÓN DEL USUARIO (El Mando a Distancia)
+    // Configuración del usuario
     const prefs = userContext.preferences || {};
     
     // Convertimos la barrita (0 a 100) a la "temperatura" que entiende la IA (0.0 a 1.0)
@@ -27,10 +27,10 @@ exports.generateBusinessAdvice = async (userContext, businessData, question) => 
 
     // Las instrucciones secretas del usuario
     const secretContext = prefs.aiContext 
-        ? `\n\n🚨 INSTRUCCIONES SECRETAS DEL USUARIO (Cumple esto estrictamente):\n"${prefs.aiContext}"` 
+        ? `\n\nInstrucciones extra:\n"${prefs.aiContext}"` 
         : '';
 
-    // ⚡ 2. FORMATEAMOS LOS DATOS DE LA BASE DE DATOS
+    // Formateamos los datos de la base de datos
     const clientsText = businessData.clients.length > 0 
       ? businessData.clients.map(c => `- ${c.name} (${c.companyName || 'Sin empresa'}): Categoría ${c.category}, Ingresos: ${c.totalValue || 0}${currency}`).join('\n')
       : 'No hay clientes registrados.';
@@ -43,7 +43,7 @@ exports.generateBusinessAdvice = async (userContext, businessData, question) => 
       ? businessData.finances.map(f => `- Fecha: ${new Date(f.date).toISOString().split('T')[0]} | Tipo: ${f.type.toUpperCase()} | Monto: ${f.amount}${currency} | Concepto: ${f.description} (${f.category}) - ${f.status}`).join('\n')
       : 'No hay movimientos financieros recientes.';
 
-    // ⚡ 3. EL CEREBRO DE LA IA (System Prompt)
+    // System Prompt
     const systemPrompt = `Eres "AI Business Manager", la Inteligencia Artificial integrada en el software de gestión de ${userContext.name}.
             
             DATOS VITALES DEL NEGOCIO:
@@ -72,7 +72,7 @@ exports.generateBusinessAdvice = async (userContext, businessData, question) => 
             Actúa como si estuvieras dentro de su pantalla. Calcula los datos reales que tienes arriba si te pide resúmenes. Nunca inventes clientes, tareas o finanzas que no estén en la lista. Si no sabes algo, dile que no tienes esos datos en su sistema.
             `;
             
-    // ⚡ 4. LA LLAMADA AL MOTOR CON SU TEMPERATURA
+    // Llamada al motor
     const chatCompletion = await groq.chat.completions.create({
       messages: [
         { role: "system", content: systemPrompt },
