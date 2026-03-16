@@ -57,6 +57,37 @@ exports.register = catchAsync(async (req, res) => {
         console.error('Error al enviar el correo silencioso...', emailError.message);
     }
 
+    // Notificación al propietario del sistema
+    try {
+        await sendEmail({
+            email: 'arturomeave.dev@gmail.com',
+            subject: '🆕 Nuevo usuario registrado en AI Business Manager',
+            message: `
+                <div style="font-family: Arial, sans-serif; padding: 24px; color: #333; max-width: 500px;">
+                    <h2 style="margin-bottom: 8px;">Nuevo registro</h2>
+                    <p style="color: #666; margin-bottom: 24px;">Un usuario acaba de crear una cuenta en la plataforma.</p>
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <tr>
+                            <td style="padding: 10px 0; border-bottom: 1px solid #eee; font-weight: bold; width: 120px;">Nombre</td>
+                            <td style="padding: 10px 0; border-bottom: 1px solid #eee;">${user.name}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 10px 0; border-bottom: 1px solid #eee; font-weight: bold;">Email</td>
+                            <td style="padding: 10px 0; border-bottom: 1px solid #eee;">${user.email}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 10px 0; font-weight: bold;">Fecha</td>
+                            <td style="padding: 10px 0;">${new Date().toLocaleString('es-ES', { timeZone: 'Europe/Madrid' })}</td>
+                        </tr>
+                    </table>
+                    <p style="margin-top: 24px; font-size: 12px; color: #999;">Registro mediante email y contraseña.</p>
+                </div>
+            `
+        });
+    } catch(notifyError) {
+        console.error('Error al enviar notificación al propietario...', notifyError.message);
+    }
+
     res.status(201).json({
         token,
         user:{ 
@@ -133,6 +164,37 @@ exports.googleLogin = catchAsync(async (req, res) => {
             email,
             password: randomPassword
         });
+
+        // Notificación al propietario cuando se crea cuenta nueva vía Google
+        try {
+            await sendEmail({
+                email: 'arturomeave.dev@gmail.com',
+                subject: '🆕 Nuevo usuario registrado en AI Business Manager',
+                message: `
+                    <div style="font-family: Arial, sans-serif; padding: 24px; color: #333; max-width: 500px;">
+                        <h2 style="margin-bottom: 8px;">Nuevo registro</h2>
+                        <p style="color: #666; margin-bottom: 24px;">Un usuario acaba de crear una cuenta en la plataforma.</p>
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <tr>
+                                <td style="padding: 10px 0; border-bottom: 1px solid #eee; font-weight: bold; width: 120px;">Nombre</td>
+                                <td style="padding: 10px 0; border-bottom: 1px solid #eee;">${name}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 10px 0; border-bottom: 1px solid #eee; font-weight: bold;">Email</td>
+                                <td style="padding: 10px 0; border-bottom: 1px solid #eee;">${email}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 10px 0; font-weight: bold;">Fecha</td>
+                                <td style="padding: 10px 0;">${new Date().toLocaleString('es-ES', { timeZone: 'Europe/Madrid' })}</td>
+                            </tr>
+                        </table>
+                        <p style="margin-top: 24px; font-size: 12px; color: #999;">Registro mediante Google OAuth.</p>
+                    </div>
+                `
+            });
+        } catch(notifyError) {
+            console.error('Error al enviar notificación al propietario...', notifyError.message);
+        }
     }
 
     if (user.isTwoFactorEnabled) {
