@@ -11,8 +11,9 @@ const app = express();
 app.use(
   cors({
     origin: [
-      "https://ai-business-manager-web.vercel.app", // Tu web oficial en Vercel
-      "http://localhost:5173", // Tu ordenador para pruebas
+      "https://ai-business-manager-web.vercel.app",
+      "https://ai-business-manager-web.vercel.app/",
+      "http://localhost:5173",
     ],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     credentials: true,
