@@ -15,6 +15,10 @@ const FinanceSchema = new mongoose.Schema({
         required: [true, 'La descripciòn es obligatoria'],
         trim: true
     },
+    title: {
+        type: String,
+        trim: true
+    },
     category: {
         type: String,
         default : 'General'
