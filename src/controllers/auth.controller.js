@@ -47,50 +47,60 @@ exports.register = catchAsync(async (req, res) => {
     
     await addSessionToUser(user, token, req);
     
-    try {
-        await sendEmail({
-            email:user.email,
-            subject: 'Bienvenido a AI Business Manager',
-            message: `<h1>¡Hola ${user.name}!</h1><p>Tu cuenta ha sido creada exitosamente.</p>`
-        });
-    } catch(emailError) {
-        console.error('Error al enviar el correo silencioso...', emailError.message);
-    }
+    // 📧 Envío de correos de forma resiliente (no bloqueante para la respuesta)
+    // Usamos funciones anónimas asíncronas para no bloquear el flujo principal
+    const sendWelcomeEmail = async () => {
+        try {
+            await sendEmail({
+                email: user.email,
+                subject: 'Bienvenido a AI Business Manager',
+                message: `<h1>¡Hola ${user.name}!</h1><p>Tu cuenta ha sido creada exitosamente.</p>`
+            });
+        } catch (error) {
+            console.error('CORS/Email Debug - Error correo bienvenida:', error.message);
+        }
+    };
 
-    // Notificación al propietario del sistema
-    try {
-        await sendEmail({
-            email: 'arturomeave.dev@gmail.com',
-            subject: '🆕 Nuevo usuario registrado en AI Business Manager',
-            message: `
-                <div style="font-family: Arial, sans-serif; padding: 24px; color: #333; max-width: 500px;">
-                    <h2 style="margin-bottom: 8px;">Nuevo registro</h2>
-                    <p style="color: #666; margin-bottom: 24px;">Un usuario acaba de crear una cuenta en la plataforma.</p>
-                    <table style="width: 100%; border-collapse: collapse;">
-                        <tr>
-                            <td style="padding: 10px 0; border-bottom: 1px solid #eee; font-weight: bold; width: 120px;">Nombre</td>
-                            <td style="padding: 10px 0; border-bottom: 1px solid #eee;">${user.name}</td>
-                        </tr>
-                        <tr>
-                            <td style="padding: 10px 0; border-bottom: 1px solid #eee; font-weight: bold;">Email</td>
-                            <td style="padding: 10px 0; border-bottom: 1px solid #eee;">${user.email}</td>
-                        </tr>
-                        <tr>
-                            <td style="padding: 10px 0; font-weight: bold;">Fecha</td>
-                            <td style="padding: 10px 0;">${new Date().toLocaleString('es-ES', { timeZone: 'Europe/Madrid' })}</td>
-                        </tr>
-                    </table>
-                    <p style="margin-top: 24px; font-size: 12px; color: #999;">Registro mediante email y contraseña.</p>
-                </div>
-            `
-        });
-    } catch(notifyError) {
-        console.error('Error al enviar notificación al propietario...', notifyError.message);
-    }
+    const sendAdminNotification = async () => {
+        try {
+            await sendEmail({
+                email: 'arturomeave.dev@gmail.com',
+                subject: '🆕 Nuevo usuario registrado en AI Business Manager',
+                message: `
+                    <div style="font-family: Arial, sans-serif; padding: 24px; color: #333; max-width: 500px;">
+                        <h2 style="margin-bottom: 8px;">Nuevo registro</h2>
+                        <p style="color: #666; margin-bottom: 24px;">Un usuario acaba de crear una cuenta en la plataforma.</p>
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <tr>
+                                <td style="padding: 10px 0; border-bottom: 1px solid #eee; font-weight: bold; width: 120px;">Nombre</td>
+                                <td style="padding: 10px 0; border-bottom: 1px solid #eee;">${user.name}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 10px 0; border-bottom: 1px solid #eee; font-weight: bold;">Email</td>
+                                <td style="padding: 10px 0; border-bottom: 1px solid #eee;">${user.email}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 10px 0; font-weight: bold;">Fecha</td>
+                                <td style="padding: 10px 0;">${new Date().toLocaleString('es-ES', { timeZone: 'Europe/Madrid' })}</td>
+                            </tr>
+                        </table>
+                        <p style="margin-top: 24px; font-size: 12px; color: #999;">Registro mediante email y contraseña.</p>
+                    </div>
+                `
+            });
+        } catch (error) {
+            console.error('CORS/Email Debug - Error notificación admin:', error.message);
+        }
+    };
 
-    res.status(201).json({
+    // Ejecutamos los envíos (sin await para no bloquear la respuesta al cliente)
+    sendWelcomeEmail();
+    sendAdminNotification();
+
+    // 🚀 Enviamos SIEMPRE la respuesta de éxito al frontend
+    return res.status(201).json({
         token,
-        user:{ 
+        user: { 
             id: user._id, 
             name: user.name, 
             email: user.email, 
@@ -165,36 +175,40 @@ exports.googleLogin = catchAsync(async (req, res) => {
             password: randomPassword
         });
 
-        // Notificación al propietario cuando se crea cuenta nueva vía Google
-        try {
-            await sendEmail({
-                email: 'arturomeave.dev@gmail.com',
-                subject: '🆕 Nuevo usuario registrado en AI Business Manager',
-                message: `
-                    <div style="font-family: Arial, sans-serif; padding: 24px; color: #333; max-width: 500px;">
-                        <h2 style="margin-bottom: 8px;">Nuevo registro</h2>
-                        <p style="color: #666; margin-bottom: 24px;">Un usuario acaba de crear una cuenta en la plataforma.</p>
-                        <table style="width: 100%; border-collapse: collapse;">
-                            <tr>
-                                <td style="padding: 10px 0; border-bottom: 1px solid #eee; font-weight: bold; width: 120px;">Nombre</td>
-                                <td style="padding: 10px 0; border-bottom: 1px solid #eee;">${name}</td>
-                            </tr>
-                            <tr>
-                                <td style="padding: 10px 0; border-bottom: 1px solid #eee; font-weight: bold;">Email</td>
-                                <td style="padding: 10px 0; border-bottom: 1px solid #eee;">${email}</td>
-                            </tr>
-                            <tr>
-                                <td style="padding: 10px 0; font-weight: bold;">Fecha</td>
-                                <td style="padding: 10px 0;">${new Date().toLocaleString('es-ES', { timeZone: 'Europe/Madrid' })}</td>
-                            </tr>
-                        </table>
-                        <p style="margin-top: 24px; font-size: 12px; color: #999;">Registro mediante Google OAuth.</p>
-                    </div>
-                `
-            });
-        } catch(notifyError) {
-            console.error('Error al enviar notificación al propietario...', notifyError.message);
-        }
+        // 📧 Notificación al propietario cuando se crea cuenta nueva vía Google (resiliente)
+        const sendAdminNotification = async () => {
+            try {
+                await sendEmail({
+                    email: 'arturomeave.dev@gmail.com',
+                    subject: '🆕 Nuevo usuario registrado en AI Business Manager',
+                    message: `
+                        <div style="font-family: Arial, sans-serif; padding: 24px; color: #333; max-width: 500px;">
+                            <h2 style="margin-bottom: 8px;">Nuevo registro</h2>
+                            <p style="color: #666; margin-bottom: 24px;">Un usuario acaba de crear una cuenta en la plataforma.</p>
+                            <table style="width: 100%; border-collapse: collapse;">
+                                <tr>
+                                    <td style="padding: 10px 0; border-bottom: 1px solid #eee; font-weight: bold; width: 120px;">Nombre</td>
+                                    <td style="padding: 10px 0; border-bottom: 1px solid #eee;">${name}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 10px 0; border-bottom: 1px solid #eee; font-weight: bold;">Email</td>
+                                    <td style="padding: 10px 0; border-bottom: 1px solid #eee;">${email}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 10px 0; font-weight: bold;">Fecha</td>
+                                    <td style="padding: 10px 0;">${new Date().toLocaleString('es-ES', { timeZone: 'Europe/Madrid' })}</td>
+                                </tr>
+                            </table>
+                            <p style="margin-top: 24px; font-size: 12px; color: #999;">Registro mediante Google OAuth.</p>
+                        </div>
+                    `
+                });
+            } catch (error) {
+                console.error('CORS/Email Debug - Error notificación admin (Google):', error.message);
+            }
+        };
+        
+        sendAdminNotification();
     }
 
     if (user.isTwoFactorEnabled) {
