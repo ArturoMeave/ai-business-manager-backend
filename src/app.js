@@ -8,27 +8,38 @@ const xss = require("xss-clean");
 
 const app = express();
 
+// 1. El Chivato de la Terminal
 app.use(morgan("dev"));
 
-// Middleware de depuración para ver qué origen llega a Render (ver en Logs de Render)
 app.use((req, res, next) => {
-  console.log('CORS Debug - Origin:', req.headers.origin);
+  console.log("CORS Debug - Origin:", req.headers.origin);
   next();
 });
 
+// 2. El Portero de Seguridad (CORS) - ¡CORREGIDO!
 app.use(
   cors({
-    origin: true, // Refleja el origen de la petición. Muy útil para despliegues en Vercel.
+    origin: [
+      "https://ai-business-manager-web.vercel.app", // Tu comedor oficial en Vercel
+      "http://localhost:5173", // Tu ordenador para pruebas locales
+    ],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "X-Requested-With",
+      "Accept",
+    ],
     credentials: true,
     optionsSuccessStatus: 204,
   }),
 );
 
+// 3. Los Escudos de Seguridad
 app.use(helmet());
 app.use(express.json({ limit: "10kb" }));
 
+// 4. El Control de Multitudes
 const limiter = rateLimit({
   windowMs: 10 * 60 * 1000,
   max: 5000,
@@ -37,6 +48,7 @@ const limiter = rateLimit({
 });
 app.use("/api", limiter);
 
+// 5. Los Limpiadores de Basura (Anti-Hackers)
 app.use((req, res, next) => {
   Object.defineProperty(req, "query", {
     value: { ...req.query },
@@ -50,6 +62,7 @@ app.use((req, res, next) => {
 app.use(mongoSanitize());
 app.use(xss());
 
+// 6. La Puerta Principal (Comprobación de vida)
 app.get("/", (req, res) => {
   res.status(200).json({
     message: "API AI Business Manager v2.0",
@@ -59,6 +72,7 @@ app.get("/", (req, res) => {
   });
 });
 
+// 7. Los Pasillos hacia las Habitaciones (Rutas)
 app.use("/api/auth", require("./routes/auth.routes"));
 app.use("/api/clients", require("./routes/client.routes"));
 app.use("/api/tasks", require("./routes/task.routes"));
@@ -66,6 +80,7 @@ app.use("/api/finance", require("./routes/finance.routes"));
 app.use("/api/ai", require("./routes/ai.routes"));
 app.use("/api/dashboard", require("./routes/dashboard.routes"));
 
+// 8. La Pared sin Puerta (Error 404)
 app.use((req, res) => {
   res.status(404).json({
     status: "fail",
@@ -73,6 +88,7 @@ app.use((req, res) => {
   });
 });
 
+// 9. El Médico de Urgencias (Manejador de Errores)
 const errorHandler = require("./middlewares/error.middleware");
 app.use(errorHandler);
 
