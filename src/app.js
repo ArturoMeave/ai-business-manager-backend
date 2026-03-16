@@ -10,19 +10,32 @@ const app = express();
 
 app.use(
   cors({
-    origin: [
-      "https://ai-business-manager-web.vercel.app",
-      "https://ai-business-manager-web.vercel.app/",
-      "http://localhost:5173",
-    ],
+    origin: (origin, callback) => {
+      const allowedOrigins = [
+        "https://ai-business-manager-web.vercel.app",
+        "http://localhost:5173",
+      ];
+      // Permite peticiones sin origen (como apps móviles o curl)
+      if (!origin) return callback(null, true);
+      
+      // Normalizamos el origen quitando la barra final
+      const normalizedOrigin = origin.replace(/\/$/, "");
+      
+      if (allowedOrigins.includes(normalizedOrigin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
     credentials: true,
+    optionsSuccessStatus: 204,
   }),
 );
-app.use(express.json({ limit: "10kb" }));
-app.use(morgan("dev"));
 
 app.use(helmet());
+app.use(express.json({ limit: "10kb" }));
 
 const limiter = rateLimit({
   windowMs: 10 * 60 * 1000,
