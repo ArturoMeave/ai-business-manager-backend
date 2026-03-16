@@ -23,7 +23,7 @@ app.use(
       "https://ai-business-manager-web.vercel.app", // Tu comedor oficial en Vercel
       "http://localhost:5173", // Tu ordenador para pruebas locales
     ],
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: [
       "Content-Type",
       "Authorization",
