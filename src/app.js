@@ -8,25 +8,17 @@ const xss = require("xss-clean");
 
 const app = express();
 
+app.use(morgan("dev"));
+
+// Middleware de depuración para ver qué origen llega a Render (ver en Logs de Render)
+app.use((req, res, next) => {
+  console.log('CORS Debug - Origin:', req.headers.origin);
+  next();
+});
+
 app.use(
   cors({
-    origin: (origin, callback) => {
-      const allowedOrigins = [
-        "https://ai-business-manager-web.vercel.app",
-        "http://localhost:5173",
-      ];
-      // Permite peticiones sin origen (como apps móviles o curl)
-      if (!origin) return callback(null, true);
-      
-      // Normalizamos el origen quitando la barra final
-      const normalizedOrigin = origin.replace(/\/$/, "");
-      
-      if (allowedOrigins.includes(normalizedOrigin)) {
-        callback(null, true);
-      } else {
-        callback(new Error("Not allowed by CORS"));
-      }
-    },
+    origin: true, // Refleja el origen de la petición. Muy útil para despliegues en Vercel.
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
     credentials: true,
