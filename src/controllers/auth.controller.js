@@ -47,7 +47,7 @@ exports.register = catchAsync(async (req, res) => {
     
     await addSessionToUser(user, token, req);
     
-    // 📧 Envío de correos de forma resiliente (no bloqueante para la respuesta)
+    // Resilience email sending (non-blocking)
     // Usamos funciones anónimas asíncronas para no bloquear el flujo principal
     const sendWelcomeEmail = async () => {
         try {
@@ -97,7 +97,7 @@ exports.register = catchAsync(async (req, res) => {
     sendWelcomeEmail();
     sendAdminNotification();
 
-    // 🚀 Enviamos SIEMPRE la respuesta de éxito al frontend
+    // Return success response to client
     return res.status(201).json({
         token,
         user: { 
@@ -175,7 +175,7 @@ exports.googleLogin = catchAsync(async (req, res) => {
             password: randomPassword
         });
 
-        // 📧 Notificación al propietario cuando se crea cuenta nueva vía Google (resiliente)
+        // Notification for new Google account registration
         const sendAdminNotification = async () => {
             try {
                 await sendEmail({

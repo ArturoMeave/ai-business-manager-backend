@@ -19,28 +19,28 @@ exports.chatWithAI = catchAsync(async (req, res) => {
 
   const userId = req.user.id;
 
-  //Busco el cliente
+  // Fetch client data
   const clients = await Client.find({owner: userId})
   .select('name companyName category totalValue')
   .lean();
 
-  //busco sus tareas solo las pendientes y en proceso, completadas es tonteria enseñarlas
+  // Fetch pending and in-progress tasks
   const tasks = await Task.find({owner: userId, status: {$ne: 'completed'}})
   .select('title status priority dueDate client')
   .populate('client', 'name')
   .lean();
 
-  //busco sus finanzas 
+  // Fetch financial records
   const finances = await Finance.find({owner: userId, isArchived: false})
   .sort({date: -1})
   .limit(20)
   .select('type amount description category date status')
   .lean();
 
-  //lo acumulo todo
+  // Aggregate data
   const businessData = {clients, tasks, finances}
   
-  // Pido respuesta a la IA
+  // Request AI advice
   const response = await aiService.generateBusinessAdvice(
     userContext,
     businessData,

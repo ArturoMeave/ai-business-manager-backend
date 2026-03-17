@@ -20,7 +20,7 @@ const {
 const auth = require('../middlewares/auth.middleware');
 
 // ==========================================
-// 🔓 RUTAS PÚBLICAS (Sin token)
+// Public routes (No token required)
 // ==========================================
 router.post('/register', register);
 router.post('/login', login);
@@ -30,7 +30,7 @@ router.put('/reset-password/:resettoken', resetPassword);
 router.post('/2fa/verify-login', verify2FALogin); 
 
 // ==========================================
-// 🔒 RUTAS PRIVADAS (Requieren estar logueado)
+// Private routes (Token required)
 // ==========================================
 router.get('/me', auth, getMe); 
 router.put('/updatedetails', auth, updateDetails);
